@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::traits::RandomAccessGraph;
 use atomic_counter::AtomicCounter;
 use common_traits::Number;
@@ -295,17 +296,21 @@ impl<G: RandomAccessGraph + Sync> GeometricCentralities<'_, G> {
             ));
         }
         let shared_pl = Mutex::new(&mut self.pl);
-        let num_of_nodes = self.graph.num_nodes();
 
         self.results
             .par_iter_mut()
             .enumerate()
             .chunks(chunk_size)
             .for_each(|mut vec_chunk| {
-                let mut distances = vec![-1; num_of_nodes];
-                let mut queue = VecDeque::new();
+                thread_local!(static DISTANCES: RefCell<Vec<i64>> = RefCell::new(Vec::new()));
+                thread_local!(static QUEUE: RefCell<VecDeque<usize>> = RefCell::new(VecDeque::new()));
+
                 vec_chunk.iter_mut().for_each(|(node, ref mut item)| {
-                    **item = Self::single_visit(self.graph, *node, &mut distances, &mut queue);
+                    DISTANCES.with_borrow_mut(|distances| {
+                        QUEUE.with_borrow_mut(|queue| {
+                            **item = Self::single_visit(self.graph, *node, distances, queue);
+                        })
+                    });
                 });
                 if logging {
                     let mut pl = shared_pl.lock().expect("Error in taking mut pl");
@@ -334,7 +339,8 @@ impl<G: RandomAccessGraph + Sync> GeometricCentralities<'_, G> {
 
         let base = DEFAULT_ALPHA;
 
-        distances.fill(-1);
+		distances.clear();
+        distances.resize(graph.num_nodes(), -1);
         queue.clear();
 
         distances[start] = 0;
