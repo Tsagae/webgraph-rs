@@ -12,3 +12,7 @@ pub use bfs_order::BfsOrder;
 
 pub mod llp;
 pub use llp::*;
+
+mod geometric_centralities;
+pub use geometric_centralities::GeometricCentralities;
+pub use geometric_centralities::GeometricCentralityResult;
