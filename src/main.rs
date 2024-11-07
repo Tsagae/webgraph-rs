@@ -8,11 +8,8 @@ use lender::Lender;
 use std::collections::VecDeque;
 use std::fs;
 use std::io::Write;
-use std::time::{Duration, SystemTime};
 use webgraph::algo::GeometricCentralities;
-use webgraph::graphs::random::ErdosRenyi;
-use webgraph::labels::Left;
-use webgraph::prelude::VecGraph;
+use webgraph::prelude::BvGraph;
 use webgraph::traits::{RandomAccessGraph, SequentialLabeling};
 
 pub fn main() -> Result<()> {
@@ -20,100 +17,22 @@ pub fn main() -> Result<()> {
     // Call the main function of the CLI with cli args
     //cli_main(std::env::args_os())
 
-    //let path = "/home/matteo/Documents/tesi/example_graphs/uk-2007-05@100000/".to_owned();
-    //let graph = BvGraph::with_basename(path + "uk-2007-05@100000").load()?;
-
-    let nodes = 100_000;
-    let edge_prob = 20f64 / nodes as f64;
-    let iterations = 3;
-    benchmark_geom_on_random_graph_rayon(nodes, edge_prob, iterations, 1);
-    benchmark_geom_on_random_graph_rayon(nodes, edge_prob, iterations, 10);
-    //benchmark_geom_on_random_graph_atomic_counter_out_channel(nodes, edge_prob, iterations);
-    //benchmark_geom_on_random_graph_2_channels(nodes, edge_prob, iterations);
+    let path = "/home/matteo/Documents/tesi/example_graphs/enron/".to_owned();
+    let graph = BvGraph::with_basename(path + "enron").load()?;
+    let mut geom = GeometricCentralities::new(&graph, 0, true);
+    geom.compute_with_atomic_counter_out_channel();
+    let mut geom = GeometricCentralities::new(&graph, 0, true);
+    geom.compute_with_2_channels();
+    let mut geom = GeometricCentralities::new(&graph, 0, true);
+    geom.compute_with_par_iter(1);
+    let mut geom = GeometricCentralities::new(&graph, 0, true);
+    geom.compute_with_par_iter(10);
+    let mut geom = GeometricCentralities::new(&graph, 0, true);
+    geom.compute_with_par_iter(50);
 
     println!("Done");
     Ok(())
 }
-
-fn benchmark_geom_on_random_graph_rayon(
-    nodes: usize,
-    edge_prob: f64,
-    iterations: usize,
-    chunk_size: usize,
-) {
-    eprintln!("-------------------------------------");
-    eprintln!("Computing geometric centralities rayon...");
-    let mut tot_time = Duration::new(0, 0);
-    for i in 0..iterations {
-        let graph = gen_random_graph(nodes, edge_prob, i as u64);
-        let mut geom = GeometricCentralities::new(&graph, 0, true);
-        let time_before = SystemTime::now();
-        geom.compute_with_par_iter(chunk_size);
-        let delta_time = time_before.elapsed().expect("Error in delta_time");
-        tot_time += delta_time;
-        eprintln!("Done computing geom {i}")
-    }
-    eprintln!(
-        "avg rayon chunks: {chunk_size} {}ms",
-        tot_time.as_millis() as f64 / iterations as f64
-    );
-    eprintln!("-------------------------------------");
-    //println!("{:?}", geom.closeness)
-}
-
-fn benchmark_geom_on_random_graph_atomic_counter_out_channel(
-    nodes: usize,
-    edge_prob: f64,
-    iterations: usize,
-) {
-    eprintln!("-------------------------------------");
-    eprintln!("Computing geometric centralities atomic out channel...");
-    let mut tot_time = Duration::new(0, 0);
-    for i in 0..iterations {
-        let graph = gen_random_graph(nodes, edge_prob, i as u64);
-        let mut geom = GeometricCentralities::new(&graph, 0, true);
-        let time_before = SystemTime::now();
-        geom.compute_with_atomic_counter_out_channel();
-        let delta_time = time_before.elapsed().expect("Error in delta_time");
-        tot_time += delta_time;
-        eprintln!("Done computing geom {i}")
-    }
-    eprintln!(
-        "avg atomic out channels {}ms",
-        tot_time.as_millis() as f64 / iterations as f64
-    );
-    eprintln!("-------------------------------------");
-    //println!("{:?}", geom.closeness)
-}
-
-fn benchmark_geom_on_random_graph_2_channels(nodes: usize, edge_prob: f64, iterations: usize) {
-    eprintln!("-------------------------------------");
-    eprintln!("Computing geometric centralities 2 channels...");
-    let mut tot_time = Duration::new(0, 0);
-    for i in 0..iterations {
-        let graph = gen_random_graph(nodes, edge_prob, i as u64);
-        let mut geom = GeometricCentralities::new(&graph, 0, true);
-        let time_before = SystemTime::now();
-        geom.compute_with_2_channels();
-        let delta_time = time_before.elapsed().expect("Error in delta_time");
-        tot_time += delta_time;
-        eprintln!("Done computing geom {i}")
-    }
-    eprintln!(
-        "avg atomic out channels thread pool {}ms",
-        tot_time.as_millis() as f64 / iterations as f64
-    );
-    eprintln!("-------------------------------------");
-    //println!("{:?}", geom.closeness)
-}
-
-fn gen_random_graph(nodes: usize, edge_prob: f64, seed: u64) -> impl RandomAccessGraph {
-    let rand = ErdosRenyi::new(nodes, edge_prob, seed);
-    let vg = VecGraph::from_lender(rand.iter());
-    println!("Generated random graph!");
-    Left(vg)
-}
-
 
 fn write_results(geom: &GeometricCentralities<impl RandomAccessGraph>) {
     let mut file = fs::File::create("/home/matteo/Documents/tesi/data/rust/rust_closeness")
