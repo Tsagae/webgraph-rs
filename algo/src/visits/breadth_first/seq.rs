@@ -149,7 +149,7 @@ impl<G: RandomAccessGraph> Sequential<EventPred> for Seq<G> {
             self.queue.push_back(Some(
                 NonMaxUsize::new(root).expect("node index should never be usize::MAX"),
             ));
-
+            /*
             callback(
                 &mut init,
                 EventPred::Unknown {
@@ -158,6 +158,7 @@ impl<G: RandomAccessGraph> Sequential<EventPred> for Seq<G> {
                     distance: 0,
                 },
             )?;
+             */
         }
 
         if self.queue.is_empty() {
@@ -193,6 +194,7 @@ impl<G: RandomAccessGraph> Sequential<EventPred> for Seq<G> {
                                 },
                             ) {
                                 self.visited.set(succ, true);
+                                /*
                                 callback(
                                     &mut init,
                                     EventPred::Unknown {
@@ -202,13 +204,14 @@ impl<G: RandomAccessGraph> Sequential<EventPred> for Seq<G> {
                                         distance,
                                     },
                                 )?;
+                                 */
                                 self.queue.push_back(Some(
                                     NonMaxUsize::new(succ)
                                         .expect("node index should never be usize::MAX"),
                                 ))
                             }
                         } else {
-                            callback(&mut init, EventPred::Known { node, pred })?;
+                            //callback(&mut init, EventPred::Known { node, pred })?;
                         }
                     }
                 }
